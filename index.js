@@ -55,7 +55,7 @@ client.once(
     // YOUR CHANNEL ID
     const channel =
     await client.channels.fetch(
-      "1509039028933234708"
+      "1509039029994262580"
     );
 
     // SEND FREE KEY BUTTON
