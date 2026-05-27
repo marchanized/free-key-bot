@@ -9,7 +9,7 @@ const {
 } = require("@supabase/supabase-js");
 
 // ======================
-// TOKENS
+// ENV VARIABLES
 // ======================
 
 const TOKEN =
@@ -36,12 +36,13 @@ const supabase = createClient(
 
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages
   ]
 });
 
 // ======================
-// BOT READY
+// READY EVENT
 // ======================
 
 client.once(
@@ -49,33 +50,73 @@ client.once(
   async () => {
 
     console.log(
-      `Logged in as ${client.user.tag}`
+      `✅ Logged in as ${client.user.tag}`
     );
 
-    // YOUR CHANNEL ID
-    const channel =
-    await client.channels.fetch(
-      "1509039029994262580"
-    );
+    try {
 
-    // SEND FREE KEY BUTTON
-    await channel.send({
-      content:
-      "🎁 Click below to claim your FREE 12-hour key!",
-      components: [
-        {
-          type: 1,
+      // CHANNEL
+      const channel =
+      await client.channels.fetch(
+        "1509039029994262580"
+      );
+
+      // CHECK EXISTING BUTTON
+      const messages =
+      await channel.messages.fetch({
+        limit: 20
+      });
+
+      const existing =
+      messages.find(
+        m =>
+        m.author.id === client.user.id &&
+        m.content.includes(
+          "FREE 12-hour key"
+        )
+      );
+
+      // SEND ONLY ONCE
+      if (!existing) {
+
+        await channel.send({
+          content:
+          "🎁 Click below to claim your FREE 12-hour key!",
           components: [
             {
-              type: 2,
-              style: 3,
-              label: "CLAIM FREE KEY",
-              custom_id: "claim_free"
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 3,
+                  label: "CLAIM FREE KEY",
+                  custom_id: "claim_free"
+                }
+              ]
             }
           ]
-        }
-      ]
-    });
+        });
+
+        console.log(
+          "✅ Free key button sent."
+        );
+
+      } else {
+
+        console.log(
+          "✅ Button already exists."
+        );
+
+      }
+
+    } catch (err) {
+
+      console.error(
+        "❌ Channel Error:",
+        err
+      );
+
+    }
 
   }
 );
@@ -91,19 +132,22 @@ client.on(
     if (!interaction.isButton()) return;
 
     if (
-      interaction.customId ===
+      interaction.customId !==
       "claim_free"
-    ) {
+    ) return;
+
+    try {
 
       const discordId =
       interaction.user.id;
 
       // ======================
-      // CHECK IF ALREADY CLAIMED
+      // CHECK PREVIOUS CLAIM
       // ======================
 
       const {
-        data: existingClaim
+        data: existingClaim,
+        error: claimError
       } = await supabase
       .from("DISCORD_FREE_CLAIMS")
       .select("*")
@@ -112,9 +156,21 @@ client.on(
         discordId
       );
 
+      if (claimError) {
+
+        console.log(claimError);
+
+        return interaction.reply({
+          content:
+          "❌ Database error.",
+          ephemeral: true
+        });
+
+      }
+
       if (
         existingClaim &&
-        existingClaim.length
+        existingClaim.length > 0
       ) {
 
         return interaction.reply({
@@ -130,7 +186,8 @@ client.on(
       // ======================
 
       const {
-        data: freeKeys
+        data: freeKeys,
+        error: keyError
       } = await supabase
       .from("KEYS")
       .select("*")
@@ -142,9 +199,21 @@ client.on(
       )
       .limit(1);
 
+      if (keyError) {
+
+        console.log(keyError);
+
+        return interaction.reply({
+          content:
+          "❌ Failed fetching free keys.",
+          ephemeral: true
+        });
+
+      }
+
       if (
         !freeKeys ||
-        !freeKeys.length
+        freeKeys.length === 0
       ) {
 
         return interaction.reply({
@@ -180,6 +249,7 @@ ${keyData.key}
 
 Loader:
 
+\`\`\`lua
 local key = "${keyData.key}"
 
 local hwid =
@@ -206,11 +276,12 @@ return
 end
 
 loadstring(response)()
+\`\`\`
 `
       );
 
       // ======================
-      // SUCCESS MESSAGE
+      // SUCCESS
       // ======================
 
       await interaction.reply({
@@ -218,6 +289,27 @@ loadstring(response)()
         "✅ FREE key sent to your DMs!",
         ephemeral: true
       });
+
+      console.log(
+        `✅ ${interaction.user.tag} claimed a FREE key.`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "❌ Interaction Error:",
+        err
+      );
+
+      if (!interaction.replied) {
+
+        await interaction.reply({
+          content:
+          "❌ Something went wrong.",
+          ephemeral: true
+        });
+
+      }
 
     }
 
