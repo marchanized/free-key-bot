@@ -179,7 +179,7 @@ client.on(
 
         return interaction.reply({
           content:
-          "❌ You already claimed a FREE key before!\n\n🛒 Want permanent access?\nPurchase here for only $4.99:\nhttps://marchie.mysellauth.com/product/auto-farm-chests-bridger-western",
+          "❌ You already claimed a FREE key before!\n\n🛒 Want 1-month access?\nPurchase here for only $4.99:\nhttps://marchie.mysellauth.com/product/auto-farm-chests-bridger-western",
           ephemeral: true
         });
 
